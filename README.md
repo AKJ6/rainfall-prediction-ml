@@ -17,6 +17,7 @@ produce a live prediction for any location by pulling current conditions from th
 - [Scripts in detail](#scripts-in-detail)
 - [Data collection (Open-Meteo)](#data-collection-open-meteo)
 - [Mapping files](#mapping-files)
+- [Version control](#version-control)
 - [Setup](#setup)
 - [How to run](#how-to-run)
 - [Accuracy & known limitations](#accuracy--known-limitations)
@@ -70,24 +71,30 @@ produce a live prediction for any location by pulling current conditions from th
 
 ### Data & artifacts
 
-| File | Description |
-|------|-------------|
-| `india_weather_openmeteo.csv` | **Primary training dataset** — 17 features incl. humidity + dew point (built by `add_humidity_dew.py`). This is what `train_openmeteo.py` / `evaluate.py` / `eval_rain_binary.py` load. Git-ignored (large). |
-| `india_weather_rainfall_data.xlsx` | Legacy 15-feature dataset used by `train.py`. Git-ignored (large). |
-| `india_weather_fetched.csv` | Base dataset built by `fetch_data.py` from Open-Meteo (15-col schema); input to `add_humidity_dew.py`. |
-| `humidity_dew_cache.csv` | Per-station fetch cache written by `add_humidity_dew.py` (enables resume after a 429). |
-| `india_weather_rainfall_data.backup.xlsx` | Automatic backup written by `add_data.py` before it modifies the dataset. |
-| `rainfall_random_forest.pkl` | Serialized trained model (produced by `train_openmeteo.py`). |
-| `label_encoders.pkl` | Serialized `LabelEncoder`s for `season`, `state`, `district`. |
-| `importance.txt` | Saved feature-importance table from a training run. |
+> These are all **git-ignored** (see [Version control](#version-control)) — regenerate
+> them by running the scripts; they are not part of the repo.
+
+| File | Tracked? | Description |
+|------|----------|-------------|
+| `india_weather_openmeteo.csv` | no | **Primary training dataset** — 17 features incl. humidity + dew point (built by `add_humidity_dew.py`). This is what `train_openmeteo.py` / `evaluate.py` / `eval_rain_binary.py` load. |
+| `india_weather_rainfall_data.xlsx` | no | Legacy 15-feature dataset used by `train.py`. |
+| `india_weather_fetched.csv` | no | Base dataset built by `fetch_data.py` from Open-Meteo (15-col schema); input to `add_humidity_dew.py`. |
+| `humidity_dew_cache.csv` | no | Per-station fetch cache written by `add_humidity_dew.py` (enables resume after a 429). |
+| `india_weather_rainfall_data.backup.xlsx` | no | Automatic backup written by `add_data.py` before it modifies the dataset. |
+| `rainfall_random_forest.pkl` | no | Serialized trained model (produced by `train_openmeteo.py`). |
+| `label_encoders.pkl` | no | Serialized `LabelEncoder`s for `season`, `state`, `district`. |
+| `importance.txt` | **yes** | Saved feature-importance table from a training run (the one non-script file kept in the repo). |
 
 ### Mapping files
 
-| File | Description |
-|------|-------------|
-| `state_mapping.csv` | 32 state codes → encoded integer. |
-| `district_mapping.csv` | District names → encoded integer. |
-| `station_name_mapping.csv` | 406 station names → encoded integer. |
+> Also **git-ignored** (`*.csv`). The fetch scripts read them to validate new rows;
+> keep local copies alongside the scripts.
+
+| File | Tracked? | Description |
+|------|----------|-------------|
+| `state_mapping.csv` | no | 32 state codes → encoded integer. |
+| `district_mapping.csv` | no | District names → encoded integer. |
+| `station_name_mapping.csv` | no | 406 station names → encoded integer. |
 
 ---
 
@@ -251,6 +258,33 @@ no assumed station count. Only stations/states present in the mapping files are 
 `state_mapping.csv`, `district_mapping.csv`, and `station_name_mapping.csv` are the
 canonical label→integer encodings. The fetch scripts use them to **validate** any new
 row so the dataset never introduces a category the encoders don't know.
+
+---
+
+## Version control
+
+`.gitignore` keeps all large / generated files out of the repo:
+
+```
+*my/      # the virtual environment
+*.xlsx    # datasets + backups
+*.pkl     # trained model + encoders
+*.csv     # fetched datasets, caches, and the mapping files
+*.env     # secrets (e.g. GOOGLE_MAPS_API_KEY)
+```
+
+So the **only tracked files** (per `git ls-files`) are the source and docs:
+
+| Tracked | Files |
+|---------|-------|
+| Scripts | `train_openmeteo.py`, `train.py`, `evaluate.py`, `eval_rain_binary.py`, `pred_rain.py`, `pred_rain_google.py`, `para.py`, `add_data.py`, `fetch_data.py`, `add_humidity_dew.py` |
+| Docs | `README.md`, `History.md` |
+| Other | `importance.txt`, `.gitignore` |
+
+Everything else — datasets (`*.csv`, `*.xlsx`), model artifacts (`*.pkl`), the mapping
+CSVs, `*.env`, and the `my/` virtualenv — is **git-ignored** and must exist locally.
+Regenerate datasets/artifacts with the fetch + train scripts; the mapping CSVs must be
+kept alongside the scripts (the fetch scripts read them and won't run without them).
 
 ---
 
