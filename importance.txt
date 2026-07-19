@@ -1,0 +1,16 @@
+     Feature  Importance
+  temp_range    0.222829
+air_pressure    0.117628
+    avg_temp    0.110885
+  wind_speed    0.087575
+ day_of_year    0.079149
+    max_temp    0.068046
+    min_temp    0.060211
+   elevation    0.052986
+   longitude    0.051319
+    latitude    0.044621
+        year    0.036166
+    district    0.030358
+      season    0.015078
+       state    0.015042
+   month_num    0.008108

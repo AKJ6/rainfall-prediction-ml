@@ -8,19 +8,13 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 
 # =====================================================
-# Load Dataset
+# Load Dataset (produced by fetch_data.py)
 # =====================================================
 
-df = pd.read_excel("india_weather_rainfall_data.xlsx")
-
-# =====================================================
-# Remove rows containing NaN
-# (Keeps rainfall = 0)
-# =====================================================
-
+df = pd.read_csv("india_weather_openmeteo.csv")
 df = df.dropna()
 
-print(f"Dataset size after removing NaNs: {len(df)} rows")
+print(f"Dataset size: {len(df)} rows")
 
 # =====================================================
 # Date Features
@@ -33,10 +27,7 @@ df["month_num"] = df["date_of_record"].dt.month
 df["day"] = df["date_of_record"].dt.day
 df["day_of_year"] = df["date_of_record"].dt.dayofyear
 
-# =====================================================
-# Temperature Feature
-# =====================================================
-
+# temp_range already computed in fetch_data.py, but recompute defensively
 df["temp_range"] = df["max_temp"] - df["min_temp"]
 
 # =====================================================
@@ -44,12 +35,7 @@ df["temp_range"] = df["max_temp"] - df["min_temp"]
 # =====================================================
 
 encoders = {}
-
-categorical_columns = [
-    "season",
-    "state",
-    "district"
-]
+categorical_columns = ["season", "state", "district"]
 
 for col in categorical_columns:
     encoder = LabelEncoder()
@@ -57,7 +43,7 @@ for col in categorical_columns:
     encoders[col] = encoder
 
 # =====================================================
-# Features
+# Features  (NOTE: humidity + dew_point are the new signal)
 # =====================================================
 
 features = [
@@ -65,6 +51,8 @@ features = [
     "min_temp",
     "max_temp",
     "temp_range",
+    "humidity",        # <-- new
+    "dew_point",       # <-- new
     "wind_speed",
     "air_pressure",
     "elevation",
@@ -75,7 +63,7 @@ features = [
     "district",
     "year",
     "month_num",
-    "day_of_year"
+    "day_of_year",
 ]
 
 target = "rainfall"
@@ -88,53 +76,45 @@ y = df[target]
 # =====================================================
 
 X_train, X_test, y_train, y_test = train_test_split(
-    X,
-    y,
-    test_size=0.2,
-    random_state=42
+    X, y, test_size=0.2, random_state=42
 )
 
 # =====================================================
-# Train Model
+# Train Model (pruned -> small + generalizes)
 # =====================================================
 
 model = RandomForestRegressor(
-    n_estimators=150,        # fewer trees -> smaller model, minimal accuracy cost
-    max_depth=16,            # prune depth so trees don't grow until pure (main size fix)
-    min_samples_leaf=20,     # no tiny memorized leaves -> less overfitting
-    max_features="sqrt",     # standard RF regularization, also shrinks each tree
+    n_estimators=150,
+    max_depth=16,
+    min_samples_leaf=20,
+    max_features="sqrt",
     random_state=42,
-    n_jobs=-1
+    n_jobs=-1,
 )
 
 print("Training model...")
 model.fit(X_train, y_train)
 
 # =====================================================
-# Predict
+# Evaluate
 # =====================================================
 
-predictions = model.predict(X_test)
-train_predictions = model.predict(X_train)
+test_pred = model.predict(X_test)
+train_pred = model.predict(X_train)
 
-# =====================================================
-# Metrics
-# =====================================================
-
-mae = mean_absolute_error(y_test, predictions)
-rmse = np.sqrt(mean_squared_error(y_test, predictions))
-r2 = r2_score(y_test, predictions)
-
-train_r2 = r2_score(y_train, train_predictions)
+mae = mean_absolute_error(y_test, test_pred)
+rmse = np.sqrt(mean_squared_error(y_test, test_pred))
+test_r2 = r2_score(y_test, test_pred)
+train_r2 = r2_score(y_train, train_pred)
 
 print("\n==============================")
 print("Evaluation")
 print("==============================")
 print(f"MAE  : {mae:.4f}")
 print(f"RMSE : {rmse:.4f}")
-print(f"R²   : {r2:.4f}")
-print(f"\nTrain R² : {train_r2:.4f}  (test R²: {r2:.4f})")
-print("Smaller train-vs-test gap = less overfitting")
+print(f"Train R² : {train_r2:.4f}")
+print(f"Test  R² : {test_r2:.4f}")
+print(f"Gap      : {train_r2 - test_r2:.4f}  (smaller = less overfitting)")
 
 # =====================================================
 # Feature Importance
@@ -142,16 +122,16 @@ print("Smaller train-vs-test gap = less overfitting")
 
 importance = pd.DataFrame({
     "Feature": features,
-    "Importance": model.feature_importances_
+    "Importance": model.feature_importances_,
 }).sort_values(by="Importance", ascending=False)
 
 print("\n==============================")
 print("Feature Importance")
 print("==============================")
-print(importance)
+print(importance.to_string(index=False))
 
 # =====================================================
-# Save Model
+# Save
 # =====================================================
 
 joblib.dump(model, "rainfall_random_forest.pkl", compress=3)

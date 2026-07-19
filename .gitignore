@@ -1,3 +1,5 @@
 *my/
 *.xlsx
 *.pkl
+*.csv
+*.env
